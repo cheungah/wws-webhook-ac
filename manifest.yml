@@ -1,6 +1,6 @@
 ---
 applications:
-- name: wws-webhook-ro
+- name: wws-webhook-ac
   memory: 128M
-  host: wws-webhook-ro
+  host: wws-webhook-ac
   domain: mybluemix.net
