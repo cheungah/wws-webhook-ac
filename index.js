@@ -8,10 +8,10 @@ var request = require("request");
 var requestjs = require("request-json");
 var crypto = require("crypto");
 
-var APP_ID = "a94753f5-???";
-var APP_SECRET = "4UZLpTis-??";
-var SPACE_ID = "5819???";
-var APP_WEBHOOK_SECRET = "n8zf???";
+var APP_ID = "254ac3e4-76fa-4ddb-b355-e04552278b04";
+var APP_SECRET = "w_yssM6_WHdwBGNW-M7MenejMjEQ";
+var SPACE_ID = "59e71446e4b015437cf48db2";
+var APP_WEBHOOK_SECRET = "79pq1di8f8u9q97h8bxdlcpz1cxxnjkj";
 // --------------------------------------------------------------------------
 // Setup global variables
 // --------------------------------------------------------------------------
@@ -44,7 +44,68 @@ app.listen(process.env.PORT || 3000, function() {
 // --------------------------------------------------------------------------
 // Webhook entry point
 app.post("/callback", jsonParser, function(req, res) {
+	// Handle Watson Work Webhook verification challenge
+    if (req.body.type === 'verification') {
+        console.log('Got Webhook verification challenge ' + req.body);
 
+        var bodyToSend = {
+            response: req.body.challenge
+        };
+
+        var hashToSend = crypto.createHmac('sha256', APP_WEBHOOK_SECRET).update(JSON.stringify(bodyToSend)).digest('hex');
+
+        res.set('X-OUTBOUND-TOKEN', hashToSend);
+        res.send(bodyToSend);
+        return;
+    }
+
+    // Ignore all our own messages
+    if (req.body.userId === APP_ID) {
+        console.log("Message from myself : abort");
+        res.status(200).end();
+        return;
+    }
+
+    // Ignore empty messages
+    if (req.body.content === "") {
+        console.log("Empty message : abort");
+        res.status(200).end();
+        return;
+    }
+
+    // Get the event type
+    var eventType = req.body.type;
+	
+	// Get the spaceId
+    var spaceId = req.body.spaceId;
+
+    // Acknowledge we received and processed notification to avoid getting
+    // sent the same event again
+    res.status(200).end();
+
+    // Act only on the events we need
+    if (eventType === "message-annotation-added") {
+        console.log("Annotation Message received.");
+        return;
+    }
+    if (eventType === "message-created") {
+        console.log("Message Created received.");
+		if (req.body.content.substring(0, 12) === "@inspiration") {
+			getJWTToken(APP_ID, APP_SECRET, function(jwt) {
+				console.log("JWT Token :", jwt);
+				var msg = "It is a beautiful day to sell a product";
+				// And post it back
+				postMessageToSpace(spaceId, jwt, msg, function(success) {
+					return;
+				})
+			})
+		}
+        return;
+    }
+
+    // We don't do anything else, so return.
+    console.log("INFO: Skipping unwanted eventType: " + eventType);
+    return;
 });
 
 // --------------------------------------------------------------------------
